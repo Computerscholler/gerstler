@@ -1,0 +1,5 @@
+name: "documents"
+elasticsearch:
+  nodes:
+  - url: "http://elasticsearch:9200"
+  index: "documents"

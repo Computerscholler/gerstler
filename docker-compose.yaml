@@ -1,0 +1,78 @@
+version: "3.7"
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.4.0
+    container_name: elasticsearch
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+      - 9300:9300
+    networks:
+      - elasticsearch
+
+  backend:
+    build:
+      context: backend/gerstler
+    image: gerstler/backend
+    container_name: gerstler_backend
+    volumes:
+      # - ./backend/gerstler/data:/app/data
+      - ./secrets:/app/secrets
+    environment:
+      GERSTLER_SECRETS_PATH: /app/secrets/
+    ports:
+      - 5000:5000
+    networks:
+      - elasticsearch
+    
+
+  frontend:
+    build:
+      context: frontend
+    image: gerstler/frontend
+    container_name: gerstler_frontend
+    ports:
+      - 2999:80
+  # FSCrawler
+  fscrawler:
+    image: toto1310/fscrawler
+    container_name: fscrawler
+    restart: always
+    volumes:
+      - ./backend/gerstler/data_integration/config:/root/.fscrawler
+      - ./documents:/tmp/es:ro
+      - ./backend/gerstler/data_integration/wait/:/root/wait/
+    depends_on:
+      - elasticsearch
+    command:
+      [
+        "/root/wait/wait-for-it.sh",
+        "elasticsearch:9200",
+        "--",
+        fscrawler,
+        --rest,
+        documents,
+      ]
+    networks:
+      - elasticsearch
+
+volumes:
+  elasticsearch-data:
+    driver: local
+
+networks:
+  elasticsearch:

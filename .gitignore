@@ -1,0 +1,6 @@
+secrets/*
+!secrets/.gitkeep
+data
+backend/gerstler/CacheDir
+backend/gerstler/data_integration/CacheDir
+backend/gerstler/data_integration/config/documents/_status.json
