@@ -136,6 +136,7 @@ func loadConfig() {
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("./config")
 	viper.AddConfigPath("../../config")
+	viper.AddConfigPath("/app/config")
 	viper.SetEnvPrefix("GERSTLER")
 	viper.AutomaticEnv()
 	err := viper.ReadInConfig() // Find and read the config file
