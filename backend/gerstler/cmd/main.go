@@ -1,6 +1,6 @@
 package main
 
-import server "github.com/sintemal/gerstler"
+import server "github.com/computerscholler/gerstler"
 
 func main() {
 	server.Start()

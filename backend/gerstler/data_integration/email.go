@@ -7,11 +7,20 @@ import (
 	"io/ioutil"
 	"log"
 
+	"github.com/computerscholler/gerstler/source"
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	_ "github.com/emersion/go-message/charset"
 	"github.com/emersion/go-message/mail"
-	"github.com/sintemal/gerstler/source"
+	"github.com/spf13/viper"
+)
+
+const (
+	URL      = "url"
+	PORT     = "port"
+	USERNAME = "username"
+	PASSWORD = "password"
+	SSL      = "ssl"
 )
 
 const emailProvider = "email"
@@ -27,6 +36,25 @@ type EmailConfig struct {
 type EmailClient struct {
 	Config EmailConfig
 	client *client.Client
+}
+
+func CreateEmailClientFromViper(v *viper.Viper) (DataIntegrator, error) {
+	v.SetDefault(PORT, 993)
+	v.SetDefault(SSL, true)
+
+	for _, key := range []string{URL, USERNAME, PASSWORD} {
+		if !v.IsSet(key) {
+			return nil, fmt.Errorf("key %s must be set for email configuration", key)
+		}
+	}
+
+	return CreateEmailClient(EmailConfig{
+		URL:      v.GetString(URL),
+		Port:     v.GetInt(PORT),
+		Username: v.GetString(USERNAME),
+		Password: v.GetString(PASSWORD),
+		SSL:      v.GetBool(SSL),
+	})
 }
 
 func CreateEmailClient(config EmailConfig) (DataIntegrator, error) {

@@ -1,7 +1,7 @@
 package data_integration
 
 import (
-	"github.com/sintemal/gerstler/source"
+	"github.com/computerscholler/gerstler/source"
 )
 
 type DataIntegrator interface {

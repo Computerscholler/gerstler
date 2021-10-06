@@ -4,7 +4,7 @@ import (
 	"log"
 	"testing"
 
-	"github.com/sintemal/gerstler/data_integration"
+	"github.com/computerscholler/gerstler/data_integration"
 	"github.com/stretchr/testify/assert"
 )
 

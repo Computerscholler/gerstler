@@ -4,20 +4,22 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
 
+	"github.com/computerscholler/gerstler/data_integration"
+	fs "github.com/computerscholler/gerstler/filesystem"
+	"github.com/computerscholler/gerstler/search"
+	"github.com/computerscholler/gerstler/source"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/sintemal/gerstler/data_integration"
-	fs "github.com/sintemal/gerstler/filesystem"
-	"github.com/sintemal/gerstler/search"
-	"github.com/sintemal/gerstler/source"
+	"github.com/spf13/viper"
 )
 
 const (
-	ENV_SECRETS_PATH = "GERSTLER_SECRETS_PATH"
-	ENV_PORT         = "GERSTLER_PORT"
+	SECRETS_PATH = "secrets_path"
+	PORT         = "server.port"
+	INDEX_PATH   = "index_path"
+	RECORDS_PATH = "records_path"
+	EMAIL        = "email"
 )
 
 const (
@@ -29,10 +31,6 @@ type Server struct {
 	SearchClients []data_integration.DataIntegrator
 }
 
-var indexPath = "./data/index.json"
-var recordsPath = "./data/records.json"
-var secretPath = "../../secrets/"
-
 const ActionQuery = "query"
 
 var wsUpgrader = websocket.Upgrader{
@@ -41,8 +39,8 @@ var wsUpgrader = websocket.Upgrader{
 }
 
 func initInverseIndexer() {
-	recFile, _ := fs.OpenFile(recordsPath)
-	indexFile, _ := fs.OpenFile(indexPath)
+	recFile, _ := fs.OpenFile(viper.GetString(RECORDS_PATH))
+	indexFile, _ := fs.OpenFile(viper.GetString(INDEX_PATH))
 	source.LoadDb(recFile, indexFile)
 	source.GenerateIndexer()
 }
@@ -133,43 +131,68 @@ func (s *Server) wsHandler(ctx *gin.Context) {
 	done <- true
 }
 
-func getEnv(name string, def string) string {
-	val, ok := os.LookupEnv(name)
-	if !ok {
-		return def
+func loadConfig() {
+	viper.SetConfigName("gerstler")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("./config")
+	viper.AddConfigPath("../../config")
+	viper.SetEnvPrefix("GERSTLER")
+	viper.AutomaticEnv()
+	err := viper.ReadInConfig() // Find and read the config file
+	if err != nil {             // Handle errors reading the config file
+		panic(fmt.Errorf("fatal error config file: %w", err))
 	}
 
-	return val
+	// set defaults
+	viper.SetDefault(PORT, "5000")
+	viper.SetDefault(SECRETS_PATH, "../../secrets/")
+	viper.SetDefault(INDEX_PATH, "./data/index.json")
+	viper.SetDefault(RECORDS_PATH, "./data/records.json")
 }
 
 func Start() {
-	port, err := strconv.Atoi(getEnv(ENV_PORT, "5000"))
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Error: %s has invalid value: %s", ENV_PORT, err))
-	}
-
+	loadConfig()
 	initInverseIndexer()
 
-	if path := os.Getenv(ENV_SECRETS_PATH); len(path) > 0 {
-		secretPath = path
+	secretPath := viper.GetString(SECRETS_PATH)
+
+	searchClients := make([]data_integration.DataIntegrator, 0, 5)
+
+	gdriveClient, err := data_integration.CreateClient(secretPath)
+	if err == nil {
+		searchClients = append(searchClients, gdriveClient)
+	} else {
+		log.Println(err)
 	}
 
-	gdriveClient := data_integration.CreateClient(secretPath)
-	secret, spaceId := data_integration.ReadNotionSecret(secretPath)
-	notionClient := data_integration.CreateNotionClient(secret, spaceId)
-	fsCrawler := data_integration.CreateCrawlerClient()
-	// change credentials
-	emailClient, err := data_integration.CreateEmailClient(data_integration.EmailConfig{
-		URL:      "imap.example.com",
-		Port:     993,
-		Username: "john@example.com",
-		Password: "password",
-	})
-	if err != nil {
-		log.Fatalln("Failed to create email client:", err)
+	secret, spaceId, err := data_integration.ReadNotionSecret(secretPath)
+	if err == nil {
+		notionClient, err := data_integration.CreateNotionClient(secret, spaceId)
+		if err == nil {
+			searchClients = append(searchClients, notionClient)
+		} else {
+			log.Println(err)
+		}
+	} else {
+		log.Println(err)
 	}
 
-	searchClients := []data_integration.DataIntegrator{gdriveClient, fsCrawler, notionClient, emailClient}
+	fsCrawler, err := data_integration.CreateCrawlerClient()
+	if err == nil {
+		searchClients = append(searchClients, fsCrawler)
+	} else {
+		log.Println(err)
+	}
+
+	emailConfig := viper.Sub(EMAIL)
+	if emailConfig != nil {
+		emailClient, err := data_integration.CreateEmailClientFromViper(emailConfig)
+		if err == nil {
+			searchClients = append(searchClients, emailClient)
+		} else {
+			log.Println("failed to create email client:", err)
+		}
+	}
 
 	server := Server{
 		SearchClients: searchClients,
@@ -177,7 +200,7 @@ func Start() {
 
 	router := gin.Default()
 	router.GET("/api/ws", server.wsHandler)
-	err = http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", port), router)
+	err = http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", viper.GetInt(PORT)), router)
 	if err != nil {
 		log.Fatalln("Server encountered an error:", err)
 	}

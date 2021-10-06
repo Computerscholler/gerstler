@@ -3,6 +3,7 @@ package data_integration
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -12,7 +13,7 @@ import (
 
 	"github.com/kjk/notionapi"
 
-	"github.com/sintemal/gerstler/source"
+	"github.com/computerscholler/gerstler/source"
 )
 
 const notionProvider = "notion"
@@ -42,10 +43,10 @@ type NotionClient struct {
 	spaceid string
 }
 
-func ReadNotionSecret(path string) (string, string) {
+func ReadNotionSecret(path string) (string, string, error) {
 	f, err := os.Open(path + "notion")
 	if err != nil {
-		log.Fatalf("Unable to find Notion secret: %+v\n", err)
+		return "", "", fmt.Errorf("notion: unable to find Notion secret: %+v", err)
 	}
 	defer f.Close()
 
@@ -54,20 +55,23 @@ func ReadNotionSecret(path string) (string, string) {
 	token := scanner.Text()
 	scanner.Scan()
 	spaceid := scanner.Text()
-	return token, spaceid
+	return token, spaceid, nil
 }
 
 func (client NotionClient) Metadata() Metadata {
 	return Metadata{Name: notionProvider, DisplayName: "Notion"}
 }
 
-func CreateNotionClient(notionSecret string, spaceid string) DataIntegrator {
+func CreateNotionClient(notionSecret string, spaceid string) (DataIntegrator, error) {
 	client := notionapi.Client{}
 	client.AuthToken = notionSecret
 
-	cacheClient, _ := notionapi.NewCachingClient("./CacheDir", &client)
+	cacheClient, err := notionapi.NewCachingClient("./CacheDir", &client)
+	if err != nil {
+		return nil, fmt.Errorf("notion: failed to create caching client %+v", err)
+	}
 	cacheClient.PreLoadCache()
-	return NotionClient{*cacheClient, notionSecret, spaceid}
+	return NotionClient{*cacheClient, notionSecret, spaceid}, nil
 }
 
 // <gzkNfoUU>VS</gzkNfoUU> Tag is used for highlighting the token
