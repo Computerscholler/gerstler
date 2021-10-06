@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
-	"log"
 	"strings"
 
+	"github.com/computerscholler/gerstler/source"
 	elasticsearch7 "github.com/elastic/go-elasticsearch/v7"
-	"github.com/sintemal/gerstler/source"
 )
 
 const NAME = "filesystem"
@@ -44,12 +44,12 @@ type Filename struct {
 	Filename string
 }
 
-func CreateCrawlerClient() CrawlerClient {
+func CreateCrawlerClient() (DataIntegrator, error) {
 	client, err := elasticsearch7.NewClient(elasticsearch7.Config{Addresses: []string{"http://elasticsearch:9200"}})
 	if err != nil {
-		log.Fatalf("Cannt create Crawler Client %+v\n", err)
+		return nil, fmt.Errorf("fscrawler: cannt create crawler client %+v", err)
 	}
-	return CrawlerClient{client: *client}
+	return CrawlerClient{client: *client}, nil
 }
 
 func (client CrawlerClient) Search(tokens []string) ([]source.SearchResult, error) {
@@ -77,7 +77,7 @@ func (client CrawlerClient) Search(tokens []string) ([]source.SearchResult, erro
 	}
 
 	if err := json.NewEncoder(&queryJson).Encode(query); err != nil {
-		log.Fatalf("Error encoding query: %s", err)
+		return nil, fmt.Errorf("fscrawler: error encoding query: %s", err)
 	}
 
 	// log.Printf(queryJson.String())
@@ -89,16 +89,14 @@ func (client CrawlerClient) Search(tokens []string) ([]source.SearchResult, erro
 		client.client.Search.WithPretty(),
 	)
 
-	log.Printf("%+v\n", res)
-
 	if err != nil {
-		log.Fatalf("%+v\n", err)
+		return nil, fmt.Errorf("fscrawler: error while searching %+v", err)
 	}
 
 	respBody, err := ioutil.ReadAll(res.Body)
 
 	if err != nil {
-		log.Fatalf("Couldn't read body %+v\n", err)
+		return nil, fmt.Errorf("fscrawler: couldn't read body %+v", err)
 	}
 
 	var hits SearchResult

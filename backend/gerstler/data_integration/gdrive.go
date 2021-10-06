@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sintemal/gerstler/source"
+	"github.com/computerscholler/gerstler/source"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
@@ -85,31 +85,31 @@ type GoogleDriveClient struct {
 	metatdata   Metadata
 }
 
-func CreateClient(path string) DataIntegrator {
+func CreateClient(path string) (DataIntegrator, error) {
 	var gdriveCredentialsPath = filepath.Join(path, "gdrive.json")
 
 	credentials, err := ioutil.ReadFile(gdriveCredentialsPath)
 	if err != nil {
-		log.Fatalf("Unable to read client secret file: %v", err)
+		return nil, fmt.Errorf("unable to read client secret file: %v", err)
 	}
 	ctx := context.Background()
 	config, err := google.ConfigFromJSON(credentials, drive.DriveScope)
 	if err != nil {
-		log.Fatalf("Unable to parse client secret file to config: %v", err)
+		return nil, fmt.Errorf("unable to parse client secret file to config: %v", err)
 	}
 	client := getClient(config, path)
 	srv, err := drive.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		log.Fatalf("Unable to retrieve Drive client: %v", err)
+		return nil, fmt.Errorf("unable to retrieve Drive client: %v", err)
 	}
-	return GoogleDriveClient{srv, credentials, Metadata{DisplayName: "Google Drive Client", Name: gdriveProvider}}
+	return GoogleDriveClient{srv, credentials, Metadata{DisplayName: "Google Drive Client", Name: gdriveProvider}}, nil
 }
 
 func (client GoogleDriveClient) Search(tokens []string) ([]source.SearchResult, error) {
 	query := "fullText contains '" + strings.Join(tokens, "' or fullText contains '") + "'"
 	r, err := client.drive.Files.List().Q(query).Fields("files(*)").Do()
 	if err != nil {
-		log.Fatalf("Unable to retrieve search Result: %v", err)
+		return nil, fmt.Errorf("unable to retrieve search Result: %v", err)
 	}
 	return client.parseFiles(r.Files, tokens), nil
 }

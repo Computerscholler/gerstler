@@ -3,8 +3,8 @@ package source_test
 import (
 	"testing"
 
-	"github.com/sintemal/gerstler/filesystem"
-	"github.com/sintemal/gerstler/source"
+	"github.com/computerscholler/gerstler/filesystem"
+	"github.com/computerscholler/gerstler/source"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,7 +41,7 @@ func TestSaveData(t *testing.T) {
 
 func TestLoadDb(t *testing.T) {
 	source.ResetMemoryDb()
-	
+
 	data := source.DummyFile{Title: "Hello", Content: "Hola mundo"}
 	source.AddEntry(data)
 
@@ -50,15 +50,15 @@ func TestLoadDb(t *testing.T) {
 	idxFile, closeI := filesystem.CreateTempFile(t, "")
 	defer closeI()
 	source.GenerateIndexer()
-	err := source.SaveDb(recFile,idxFile)
+	err := source.SaveDb(recFile, idxFile)
 	assert.NoError(t, err)
 	source.ResetMemoryDb()
 
-	recFile.Seek(0,0)
-	idxFile.Seek(0,0)
-	err = source.LoadDb(recFile,idxFile)
+	recFile.Seek(0, 0)
+	idxFile.Seek(0, 0)
+	err = source.LoadDb(recFile, idxFile)
 	assert.NoError(t, err)
-	
-	records,_ := source.Search("mundo")
-	assert.Equal(t, 1,len(records))
+
+	records, _ := source.Search("mundo")
+	assert.Equal(t, 1, len(records))
 }

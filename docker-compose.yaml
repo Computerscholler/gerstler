@@ -32,6 +32,7 @@ services:
     volumes:
       # - ./backend/gerstler/data:/app/data
       - ./secrets:/app/secrets
+      - ./config:/app/config
     environment:
       GERSTLER_SECRETS_PATH: /app/secrets/
     ports:
@@ -47,6 +48,7 @@ services:
     container_name: gerstler_frontend
     ports:
       - 2999:80
+      
   # FSCrawler
   fscrawler:
     image: toto1310/fscrawler

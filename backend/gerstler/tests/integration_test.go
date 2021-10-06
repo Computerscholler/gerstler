@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/sintemal/gerstler/source"
+	"github.com/computerscholler/gerstler/source"
 	"github.com/stretchr/testify/assert"
 )
 

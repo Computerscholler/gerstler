@@ -20,8 +20,9 @@ EXPOSE 5000
 
 RUN mkdir /app/data
 RUN mkdir /app/secrets
+RUN mkdir /data/config
 
-VOLUME [ "/app/data", "/app/secrets" ]
+VOLUME [ "/app/data", "/app/secrets", "/app/config" ]
 
 ENV GIN_MODE=release
 
